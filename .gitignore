@@ -1,0 +1,47 @@
+# --- Python Specific ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# --- PyTorch & Machine Learning ---
+# Large model weights (don't push these to Git!)
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.weights
+*.h5
+
+# Datasets
+data/
+datasets/
+*.csv
+*.jsonl
+*.parquet
+
+# Training logs (TensorBoard, WandB)
+runs/
+wandb/
+lightning_logs/
+
+# --- Jupyter Notebooks ---
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# --- Editor & OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+models_ebm_pcdae_saved/
+models_pcdae_saved/
+models_regressor_saved/
