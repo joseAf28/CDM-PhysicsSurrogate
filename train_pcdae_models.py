@@ -25,7 +25,7 @@ def procedure_one(config, device, seed):
     pcdae = train.train_model(seed, device, config)
     
     ### save model
-    torch.save(pcdae.state_dict(), f"models_saved/pcdae_inference_{seed}.pth")
+    torch.save(pcdae.state_dict(), f"models_pcdae_saved/pcdae_inference_{seed}.pth")
 
 
 

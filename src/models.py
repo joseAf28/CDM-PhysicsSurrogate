@@ -107,6 +107,52 @@ class PCDAE(nn.Module):
 
 
 
+
+class PCDAE_EBM(nn.Module):
+    def __init__(
+        self,
+        x_dim: int,
+        y_dim: int,
+        x_embed_dim: int = 16,
+        hidden_dim: int = 104
+    ):
+        super().__init__()
+        self.x_proj = nn.Sequential(
+            nn.Linear(x_dim, x_embed_dim),
+            nn.GELU(),
+            nn.Linear(x_embed_dim, x_embed_dim)
+        )
+        # Initial projection of y_noisy
+        self.y_proj = nn.Sequential(
+            nn.Linear(y_dim, hidden_dim),
+            nn.GELU(),
+            nn.Linear(hidden_dim, hidden_dim)
+        )
+        
+        self.decoder = nn.Sequential(
+            nn.LayerNorm(hidden_dim + x_embed_dim),
+            nn.Linear(hidden_dim + x_embed_dim, hidden_dim),
+            nn.GELU(),
+            nn.Linear(hidden_dim, y_dim + x_dim)
+        )
+
+
+    def forward(self, x: torch.Tensor, y_noisy: torch.Tensor):
+        # Embeddings
+        x_emb = self.x_proj(x)                        # [B, x_embed_dim]
+        h = self.y_proj(y_noisy)                      # [B, hidden_dim]
+        
+        # Decoder
+        dec_in = torch.cat([h, x_emb], dim=-1)
+        dec_out = self.decoder(dec_in)                # [B, x_dim + y_dim]
+        
+        return dec_out, h
+
+
+
+
+
+
 class Regressor(nn.Module):
     def __init__(self, input_size, hidden_sizes, output_size):
         super().__init__()

@@ -10,6 +10,7 @@ import src.models as models
 import src.dataset as ds
 import src.data_preparation as data_prep
 import src.inference_regressor as constraints
+import src.inference_pcdae as inference
 import src.train_regressor as train
 
 
@@ -39,14 +40,17 @@ def procedure_one(config, device, condition):
     loss_net_pred = ((y_pred - y_test_scaled)**2).mean()
     loss_proj_pred = ((p_pred - y_test_scaled)**2).mean()
     
-    return (seed, hidden_size, loss_net_pred, loss_proj_pred)
+    constant_net = inference.get_constraints_scalar(torch.from_numpy(X_test_scaled), torch.from_numpy(y_pred), scaler_X, scaler_Y).pow(2).mean()
+    constant_proj = inference.get_constraints_scalar(torch.from_numpy(X_test_scaled), torch.from_numpy(p_pred), scaler_X, scaler_Y).pow(2).mean()
+    
+    return (seed, hidden_size, loss_net_pred, loss_proj_pred, constant_net, constant_proj)
 
 
 if __name__ == "__main__":
     
     device = torch.device('cpu')
     config_file = "config_regressor.yaml"
-    output_file = "results/scaling_regressorV3.h5"
+    output_file = "results/scaling_params_regressorV3.h5"
     
     seed_vec = np.arange(1, 400, 40, dtype=int)
     hidden_sizes = [50, 65, 80, 95, 110, 135, 160, 180, 200]
@@ -72,7 +76,7 @@ if __name__ == "__main__":
     
     
     results = Parallel(n_jobs=-1, backend="loky")(delayed(procedure_one)(config, device, condition) for condition in condition_vec)
-    seed_vec, hidden_vec, loss_net_vec, loss_proj_vec = zip(*results)
+    seed_vec, hidden_vec, loss_net_vec, loss_proj_vec, constant_net, constant_proj = zip(*results)
     
     pickled_config = pickle.dumps(config)
     
@@ -82,5 +86,7 @@ if __name__ == "__main__":
     group.create_dataset("hidden", data=hidden_vec)
     group.create_dataset("loss_net", data=loss_net_vec)
     group.create_dataset("loss_proj", data=loss_proj_vec)
+    group.create_dataset("constant_net", data=constant_net)
+    group.create_dataset("constant_proj", data=constant_proj)
     group.create_dataset("config", data=np.void(pickled_config))
     fileh5.close()

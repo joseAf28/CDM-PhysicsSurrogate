@@ -21,6 +21,7 @@ def train_model(seed, device, config):
     X_scaled, y_scaled = data_dict['train']
     X_val_scaled, y_val_scaled = data_dict['val']
     X_test_scaled, y_test_scaled = data_dict['test']
+    scaler_X, scaler_Y = data_dict['scalers']
     
     batch_size = config['training']['batch_size']
 
@@ -60,7 +61,7 @@ def train_model(seed, device, config):
             
             pred = regressor(x)
             loss = nn.MSELoss()(pred, y)
-            loss_physics = (constraints.constraints_func(x,pred)**2).mean()
+            loss_physics = (constraints.constraints_func_loss(x,pred, scaler_X, scaler_Y)**2).mean()
             
             total_loss = (1 - weight_physics) * loss + weight_physics * loss
             total_loss.backward()
@@ -77,7 +78,7 @@ def train_model(seed, device, config):
                 
                 pred = regressor(xv)
                 loss = nn.MSELoss()(pred, yv)
-                loss_physics = (constraints.constraints_func(xv,pred)**2).mean()
+                loss_physics = (constraints.constraints_func_loss(xv,pred, scaler_X, scaler_Y)**2).mean()
                 
                 total_loss = (1 - weight_physics) * loss + weight_physics * loss
                 

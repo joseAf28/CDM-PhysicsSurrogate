@@ -1,0 +1,25 @@
+model_name: "PCDAE"
+
+data:
+  data_path: "data/data_3000_points.txt"
+
+training:
+  ratio_test_val_train: 0.15
+  batch_size: 32
+  lr: 1e-3
+  n_epochs_max: 6000
+  n_epochs_min: 4500 # starts at 4000 for the training case
+  noise_kernel: "VE" ### always choose VE
+  noise_dist: "sine" ### "linear", "sine"
+
+model:
+  x_dim: 3
+  y_dim: 17
+  hidden_dim: 58
+  s_noise: 0.008
+  sigma_max: 1.0
+
+inference:
+  EBM_T: 1300 ## 1300
+
+### step size: 0.05 instead of 0.01

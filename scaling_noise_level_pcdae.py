@@ -34,59 +34,68 @@ def procedure_one(config, device, condition):
     
     batch_size = 128
 
+
     test_dataset = ds.LTPDataset(X_test_scaled, y_test_scaled)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     
-    sigma_min = float(config['model']['sigma_min'])
+    s_noise = float(config['model']['s_noise'])
+    sigma_max = float(config['model']['sigma_max'])
+    noise_dist = config['training']['noise_dist']
+    
+    T1_T, T1_K = int(config['inference']['T1_T']), int(config['inference']['T1_K'])
+    T2_T, T2_K = int(config['inference']['T2_T']), int(config['inference']['T2_K'])
+    
+    ##! presented in the reverse order
+    T1_vec = torch.linspace(1, 0, T1_T)
+    T2_vec = torch.linspace(1, 0, T2_T)
+    
+    s_noise = float(config['model']['s_noise'])
     sigma_max = float(config['model']['sigma_max'])
     
-    T1_T, T1_K = config['inference']['T1_T'], config['inference']['T1_K']
-    T2_T, T2_K = config['inference']['T2_T'], config['inference']['T2_K']
+    T1_schedule = sigma_max * torch.sin((T1_vec + s_noise)/(1.0 + s_noise) * torch.pi / 2.0).to(device)
+    T2_schedule = sigma_max * torch.sin((T1_vec + s_noise)/(1.0 + s_noise) * torch.pi / 2.0).to(device)
     
-    noise_schedule1 = np.geomspace(sigma_max, sigma_min, T1_T)
-    steps_vec1 = np.linspace(T1_K, T1_K, T1_T, dtype=int)
-    
-    noise_schedule2 = np.geomspace(sigma_max, sigma_min, T2_T)
-    steps_vec2 = np.linspace(T2_K, T2_K, T2_T, dtype=int)
-    
-    test_init_loss = 0.0
-    test_refine_loss1 = 0.0
-    test_refine_loss2 = 0.0
-    
+    ###! EBM sampling
+
+    test_init_loss = 0
+    test_T1_loss = 0
+    test_T2_loss = 0
+
     
     for i, (x, y) in enumerate(test_dataloader):
         
         y_init = torch.randn_like(y)
-        y_refined1 = inference.inference_PCDAE_base(pcdae, x, y_init, noise_schedule1, \
-                                steps_vec=steps_vec1, step_size=0.01, eps_conv=1e-4, eps_clip=5e-1)
-            
-        y_refined2 = inference.inference_PCDAE_base(pcdae, x, y_init, noise_schedule2, \
-                                steps_vec=steps_vec2, step_size=0.01, eps_conv=1e-4, eps_clip=5e-1)
+        y_T1 = inference.inference_scheduled_ODE(pcdae, x, y_init, 
+                            noise_schedule=T1_schedule, steps_per_level=T1_K, eps_clip=None)
+        
+        y_T2 = inference.inference_scheduled_ODE(pcdae, x, y_init, 
+                            noise_schedule=T2_schedule, steps_per_level=T2_K, eps_clip=None)
+        
         
         loss_init = nn.MSELoss()(y_init, y)
-        loss_refined1 = nn.MSELoss()(y_refined1, y)
-        loss_refined2 = nn.MSELoss()(y_refined2, y)
+        loss_T1 = nn.MSELoss()(y_T1, y)
+        loss_T2 = nn.MSELoss()(y_T2, y)
         
         test_init_loss += loss_init.item()
-        test_refine_loss1 += loss_refined1.item()
-        test_refine_loss2 += loss_refined2.item()
+        test_T1_loss += loss_T1.item()
+        test_T2_loss += loss_T2.item()
     
     
     test_init_loss /= len(test_dataloader)
-    test_refine_loss1 /= len(test_dataloader)
-    test_refine_loss2 /= len(test_dataloader)
+    test_T1_loss /= len(test_dataloader)
+    test_T2_loss /= len(test_dataloader)
         
-    return (seed, sigma_max, test_init_loss, test_refine_loss1, test_refine_loss2)
+    return (seed, sigma_max, test_init_loss, test_T1_loss, test_T2_loss)
 
 
 if __name__ == "__main__":
     
     device = torch.device('cpu')
     config_file = "config_pcdae.yaml"
-    output_file = "results/scaling_noise_level_pcdae.h5"
+    output_file = "results/scaling_noise_level_pcdae_sine_V3.h5"
     
     seed_vec = np.arange(1, 400, 40, dtype=int)
-    sigma_max_vec = [0.05, 0.2, 0.35, 0.5, 0.65, 0.8, 0.95, 1.1] 
+    sigma_max_vec = [0.05, 0.25, 0.45, 0.65, 0.85, 1.05, 1.25] 
     
     try:
         with open(config_file, 'r') as file:

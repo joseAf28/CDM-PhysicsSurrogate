@@ -28,14 +28,18 @@ def define_g_constraint(scaler_X, scaler_Y, x_dim=3, p_dim=17):
     kb, e = 1.380649e-23, 1.602176634e-19
     
     Tg = p_sym[11] * scaler_Y.scale_[11] + scaler_Y.mean_[11]
-    # NOTE: sum1 is for MX, for SX we use this pattern:
-    conc = ca.sum2(p_sym[:11])
-    P_calc = conc * Tg * kb
+    
+    conc_scaled_sum = 0
+    for i in range(11):
+        conc_scaled_sum += (p_sym[i] * scaler_Y.scale_[i] + scaler_Y.mean_[i])
+        
+    P_calc = conc_scaled_sum * Tg * kb
     
     ne_model = p_sym[16]* scaler_Y.scale_[16] + scaler_Y.mean_[16]
     ne_calc = p_sym[4] * scaler_Y.scale_[4] + scaler_Y.mean_[4] + p_sym[7] * scaler_Y.scale_[7] + scaler_Y.mean_[7] - (p_sym[8] * scaler_Y.scale_[8] + scaler_Y.mean_[8])
     
     vd = p_sym[14] * scaler_Y.scale_[14] + scaler_Y.mean_[14]
+    
     I_calc = e * ne_model * vd * ca.pi * R**2
     
     P_law = (P_calc - P) / scaler_X.scale_[0]
@@ -74,8 +78,8 @@ class ProjectionSolver:
             'p': ca.vcat([x_param, y_target_param])
         }
         
-        options = {'ipopt.print_level' : 0, 'ipopt.sb' : "no", 'ipopt.tol' : 1e-8, 'print_time': 0,
-                    'ipopt.max_iter' : 200, 'ipopt.acceptable_tol' : 1e-8}
+        options = {'ipopt.print_level' : 0, 'ipopt.sb' : "no", 'ipopt.tol' : 1e-10, 'print_time': 0,
+                    'ipopt.max_iter' : 500, 'ipopt.acceptable_tol' : 1e-10}
         
         self.solver = ca.nlpsol('solver', 'ipopt', nlp_problem, options)
         
@@ -112,6 +116,11 @@ class ProjectionSolver:
                                 ubg=self.ubg)
                 
                 p_optimal_scaled_batch[i, :] = sol['x'].toarray().flatten()
+                
+                # # sol['g'] contains the values of the constraints at the solution
+                # g_values = sol['g'].toarray().flatten()
+                # total_violation = np.sum(np.abs(g_values))
+                # print(f"Item {i}: Constraint Violation (Sum Abs) = {total_violation:.2e}")
 
             except Exception as e:
                 print(f"Solver failed for item {i}: {e}")

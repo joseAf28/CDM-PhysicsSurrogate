@@ -10,6 +10,7 @@ import src.models as models
 import src.dataset as ds
 import src.data_preparation as data_prep
 import src.inference_regressor as constraints
+import src.inference_pcdae as inference
 import src.train_regressor as train
 
 
@@ -39,7 +40,10 @@ def procedure_one(config, device, condition):
     loss_net_pred = ((y_pred - y_test_scaled)**2).mean()
     loss_proj_pred = ((p_pred - y_test_scaled)**2).mean()
     
-    return (seed, ratio, loss_net_pred, loss_proj_pred)
+    constant_net = inference.get_constraints_scalar(torch.from_numpy(X_test_scaled), torch.from_numpy(y_pred), scaler_X, scaler_Y).pow(2).mean()
+    constant_proj = inference.get_constraints_scalar(torch.from_numpy(X_test_scaled), torch.from_numpy(p_pred), scaler_X, scaler_Y).pow(2).mean()
+    
+    return (seed, ratio, loss_net_pred, loss_proj_pred, constant_net, constant_proj)
 
 
 if __name__ == "__main__":
@@ -69,7 +73,7 @@ if __name__ == "__main__":
     
     
     results = Parallel(n_jobs=-1, backend="loky")(delayed(procedure_one)(config, device, condition) for condition in condition_vec)
-    seed_vec, hidden_vec, loss_net_vec, loss_proj_vec = zip(*results)
+    seed_vec, hidden_vec, loss_net_vec, loss_proj_vec, const_net, const_proj = zip(*results)
     
     pickled_config = pickle.dumps(config)
     
@@ -79,5 +83,7 @@ if __name__ == "__main__":
     group.create_dataset("ratio", data=hidden_vec)
     group.create_dataset("loss_net", data=loss_net_vec)
     group.create_dataset("loss_proj", data=loss_proj_vec)
+    group.create_dataset("const_net", data=const_net)
+    group.create_dataset("const_proj", data=const_proj)
     group.create_dataset("config", data=np.void(pickled_config))
     fileh5.close()
