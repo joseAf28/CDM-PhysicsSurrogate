@@ -45,3 +45,7 @@ Thumbs.db
 models_ebm_pcdae_saved/
 models_pcdae_saved/
 models_regressor_saved/
+results/
+results_oldV2/
+src/old
+tests/
